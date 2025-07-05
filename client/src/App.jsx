@@ -1,38 +1,80 @@
 // client/src/App.jsx
-import { useState, useEffect } from 'react';
-import './App.css'; // Assuming you have this file from the starter
+import { useState } from 'react';
+import './App.css';
 
 function App() {
-  const [serverMessage, setServerMessage] = useState('');
+  const [prompt, setPrompt] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  useEffect(() => {
-    // The URL of our backend server's endpoint
-    const backendUrl = 'http://localhost:8080/';
+  const handleSubmit = async (e) => {
+    e.preventDefault(); // Prevent the form from reloading the page
+    setLoading(true);
+    setImageUrl('');
+    setError(null);
 
-    fetch(backendUrl)
-      .then(response => {
-        if (!response.ok) {
-          throw new Error('Network response was not ok');
-        }
-        return response.json();
-      })
-      .then(data => {
-        setServerMessage(data.message);
-      })
-      .catch(error => {
-        console.error('There was a problem with the fetch operation:', error);
-        setServerMessage('Failed to connect to the server.');
+    try {
+      const response = await fetch('http://localhost:8080/api/generate-image', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ prompt: prompt }),
       });
-  }, []); // The empty dependency array ensures this effect runs only once on mount
+
+      if (!response.ok) {
+        throw new Error('Failed to generate image. Please try again.');
+      }
+
+      const data = await response.json();
+      setImageUrl(data.imageUrl);
+
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <>
-      <h1>MERN AI Image Generator</h1>
-      <p>
-        <strong>Status:</strong> {serverMessage}
-      </p>
-    </>
+    <div className="app-container">
+      <h1>AI Image Generator with MERN & Hugging Face</h1>
+      <p>Enter a prompt and watch the AI bring your idea to life. Powered by Stable Diffusion.</p>
+      
+      <form onSubmit={handleSubmit} className="image-form">
+        <input
+          type="text"
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          placeholder="e.g., A photo of an astronaut riding a horse on Mars"
+          required
+        />
+        <button type="submit" disabled={loading}>
+          {loading ? 'Generating...' : 'Generate Image'}
+        </button>
+      </form>
+
+      {error && <div className="error-message">{error}</div>}
+
+      <div className="image-display-area">
+        {loading && (
+          <div className="loading-indicator">
+            <p>Creating your masterpiece... please wait.</p>
+            <div className="spinner"></div>
+          </div>
+        )}
+        
+        {imageUrl && !loading && (
+          <div className="generated-image-container">
+            <h2>Your Generated Image:</h2>
+            <img src={imageUrl} alt={`Generated from prompt: ${prompt}`} />
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
 export default App;
+
